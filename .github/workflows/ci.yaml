@@ -1,0 +1,31 @@
+name: ci
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - run: go vet ./...
+
+      - run: go test ./...
+
+      # The action must keep working for consumers, so exercise it on this repository. It builds from
+      # the checkout: the module proxy cannot resolve the merge commit of a pull request.
+      - name: configlint action
+        uses: ./
+        with:
+          local: true
