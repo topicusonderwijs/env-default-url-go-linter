@@ -33,6 +33,14 @@ type Probe struct {
 	GermanHost   string `env-default:"service.example.de"`           // want `Probe.GermanHost: "service.example.de" is an environment-specific default`
 	ClusterHost  string `env-default:"db.default.svc.cluster.local"` // want `Probe.ClusterHost: "db.default.svc.cluster.local" is an environment-specific default`
 
+	LocalURLUpper    string `env-default:"http://LOCALHOST:8080"`
+	LocalURLLoopback string `env-default:"http://127.0.0.2"`
+	LocalURLIPv6     string `env-default:"http://[::]:8080"`
+	LocalURLIPv6Loop string `env-default:"http://[::1]:8080/"`
+	LocalBareUpper   string `env-default:"LOCALHOST:8080"`
+	LocalDotted      string `env-default:"localhost.:8080"`
+	RemoteIPURL      string `env-default:"http://10.0.3.4:8080"` // want `Probe.RemoteIPURL: "http://10.0.3.4:8080" is an environment-specific default`
+
 	LoopbackIP    string `env-default:"127.0.0.1:8080"`
 	LoopbackIPv6  string `env-default:"::1"`
 	UnspecifiedIP string `env-default:"0.0.0.0:80"`

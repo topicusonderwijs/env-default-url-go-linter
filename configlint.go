@@ -55,13 +55,9 @@ func init() {
 		"also report defaults in _test.go files, where fixtures legitimately carry them")
 }
 
-// Hosts that resolve to the same machine in every deployment and may therefore keep a default.
-var localHosts = map[string]bool{
-	"localhost": true,
-	"127.0.0.1": true,
-	"0.0.0.0":   true,
-	"::1":       true,
-}
+// localhost is the one name that resolves to the same machine in every deployment. Loopback and
+// unspecified addresses are recognized by their value, see isLocalHost.
+const localhost = "localhost"
 
 // Suffixes that make a bare value a hostname rather than, say, a NATS subject or a bucket list.
 var hostSuffixes = map[string]bool{
@@ -203,16 +199,16 @@ func isCredentialField(name string) bool {
 
 func isEnvironmentSpecific(value string) bool {
 	if parsed, err := url.Parse(value); err == nil && parsed.Scheme != "" && parsed.Host != "" {
-		return !localHosts[parsed.Hostname()]
+		return !isLocalHost(parsed.Hostname())
 	}
 	if addr, ok := ipOf(value); ok {
-		return !addr.IsLoopback() && !addr.IsUnspecified()
+		return !isLocalAddr(addr)
 	}
 	if address, domain, found := strings.Cut(value, "@"); found && address != "" && isHostname(domain) {
 		return true
 	}
 	if isHostname(value) {
-		return !localHosts[hostOf(value)]
+		return !isLocalHost(hostOf(value))
 	}
 
 	return hasDeploymentMarker(value)
@@ -221,7 +217,7 @@ func isEnvironmentSpecific(value string) bool {
 // isHostname keeps NATS subjects and bucket lists, which also contain dots, from being read as hosts.
 func isHostname(value string) bool {
 	host := hostOf(value)
-	if localHosts[host] {
+	if isLocalHost(host) {
 		return true
 	}
 
@@ -231,6 +227,21 @@ func isHostname(value string) bool {
 	}
 
 	return hostSuffixes[strings.ToLower(labels[len(labels)-1])]
+}
+
+// isLocalHost reports a host that means this machine in every deployment: localhost in any case, and
+// any loopback or unspecified address, such as 127.0.0.2 or [::]. URL hosts and bare values share it.
+func isLocalHost(host string) bool {
+	host = strings.TrimSuffix(strings.ToLower(host), ".")
+	if addr, err := netip.ParseAddr(host); err == nil {
+		return isLocalAddr(addr)
+	}
+
+	return host == localhost
+}
+
+func isLocalAddr(addr netip.Addr) bool {
+	return addr.IsLoopback() || addr.IsUnspecified()
 }
 
 // ipOf reads a bare IP address, with or without a port, such as 10.0.3.4:8080 or [::1]:80.
