@@ -1,0 +1,53 @@
+name: configlint
+description: Report configuration defaults (env-default struct tags) that differ per deployment, such as URLs.
+
+inputs:
+  version:
+    description: Version of configlint to install (a tag, branch or commit).
+    default: v0.0.1
+  local:
+    description: Build configlint from the checked-out repository instead of installing `version`. For this repository's own CI.
+    default: "false"
+  packages:
+    description: Package pattern to analyze.
+    default: ./...
+  args:
+    description: Extra flags for configlint, for example "-tests" or "-tag=default".
+    default: ""
+  working-directory:
+    description: Directory of the Go module to analyze.
+    default: .
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: ${{ inputs.working-directory }}/go.mod
+
+    - name: Install configlint
+      if: inputs.local != 'true'
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: go install "github.com/topicusonderwijs/env-default-url-go-linter/cmd/configlint@${VERSION}"
+
+    - name: Install configlint from checkout
+      if: inputs.local == 'true'
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: go install ./cmd/configlint
+
+    - name: Run configlint
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      # Inputs reach the script as environment variables, never as script text, so a caller passing an
+      # untrusted value cannot inject commands. They are split into words, without globbing.
+      env:
+        ARGS: ${{ inputs.args }}
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        set -f
+        read -ra args <<< "$ARGS"
+        read -ra packages <<< "$PACKAGES"
+        configlint "${args[@]}" "${packages[@]}"
