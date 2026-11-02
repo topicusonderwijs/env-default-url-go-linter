@@ -4,7 +4,7 @@ description: Report configuration defaults (env-default struct tags) that differ
 inputs:
   version:
     description: Version of configlint to install (a tag, branch or commit).
-    default: v0.0.1
+    default: v0.0.2
   local:
     description: Build configlint from the checked-out repository instead of installing `version`. For this repository's own CI.
     default: "false"

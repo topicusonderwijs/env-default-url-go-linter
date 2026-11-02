@@ -10,15 +10,15 @@ A Go analyzer that reports `env-default` struct tags whose value names a single 
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: topicusonderwijs/env-default-url-go-linter@v0.0.1
+- uses: topicusonderwijs/env-default-url-go-linter@v0.0.2
 ```
 
-Inputs: `version` (default `v0.0.1`, the latest release; a tag, branch or commit), `packages` (default `./...`), `args` (extra flags) and `working-directory`. The step fails when a finding is reported.
+Inputs: `version` (default `v0.0.2`, the latest release; a tag, branch or commit), `packages` (default `./...`), `args` (extra flags) and `working-directory`. The step fails when a finding is reported.
 
 ### Locally
 
 ```sh
-go install github.com/topicusonderwijs/env-default-url-go-linter/cmd/configlint@v0.0.1
+go install github.com/topicusonderwijs/env-default-url-go-linter/cmd/configlint@v0.0.2
 configlint ./...
 # or as a vet tool
 go vet -vettool=$(which configlint) ./...
