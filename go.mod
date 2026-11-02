@@ -1,6 +1,6 @@
 module github.com/topicusonderwijs/env-default-url-go-linter
 
-go 1.26.7
+go 1.27.3
 
 require golang.org/x/tools v0.52.0
 
