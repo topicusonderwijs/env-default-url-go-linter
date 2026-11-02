@@ -18,6 +18,7 @@ import (
 	"net/netip"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -60,17 +61,17 @@ func init() {
 const localhost = "localhost"
 
 // Suffixes that make a bare value a hostname rather than, say, a NATS subject or a bucket list.
-var hostSuffixes = map[string]bool{
-	"net": true, "nl": true, "com": true, "org": true,
-	"io": true, "dev": true, "build": true, "education": true,
-	"eu": true, "de": true, "be": true, "uk": true, "fr": true,
-	"internal": true, "local": true, "cloud": true, "k8s": true,
+var hostSuffixes = []string{
+	"net", "nl", "com", "org",
+	"io", "dev", "build", "education",
+	"eu", "de", "be", "uk", "fr",
+	"internal", "local", "cloud", "k8s",
 }
 
 // Tokens that name a single deployment, so a value containing one cannot be right everywhere.
-var deploymentMarkers = map[string]bool{
-	"test": true, "acc": true, "acceptatie": true, "sandbox": true,
-	"staging": true, "prod": true, "productie": true, "dev": true,
+var deploymentMarkers = []string{
+	"test", "acc", "acceptatie", "sandbox",
+	"staging", "prod", "productie", "dev",
 }
 
 // Field name suffixes that hold a secret or a client identity, which must never come from a default.
@@ -226,7 +227,7 @@ func isHostname(value string) bool {
 		return false
 	}
 
-	return hostSuffixes[strings.ToLower(labels[len(labels)-1])]
+	return slices.Contains(hostSuffixes, strings.ToLower(labels[len(labels)-1]))
 }
 
 // isLocalHost reports a host that means this machine in every deployment: localhost in any case, and
@@ -278,7 +279,7 @@ func hasDeploymentMarker(value string) bool {
 		return strings.ContainsRune("._-/: ", r)
 	}
 	for _, token := range strings.FieldsFunc(strings.ToLower(value), isSeparator) {
-		if deploymentMarkers[token] {
+		if slices.Contains(deploymentMarkers, token) {
 			return true
 		}
 	}
