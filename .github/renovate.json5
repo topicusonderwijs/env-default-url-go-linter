@@ -1,0 +1,23 @@
+{
+  extends: [
+    'local>topicusonderwijs/renovate-config:default.json5',
+    'local>topicusonderwijs/renovate-config:go.json5',
+  ],
+  prConcurrentLimit: 10,
+  baseBranches: [
+    'main',
+  ],
+  schedule: [
+    'every weekend',
+  ],
+  packageRules: [
+    {
+      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
+      automerge: true,
+    },
+    {
+      matchUpdateTypes: ["major"],
+      automerge: false
+    },
+  ],
+}
