@@ -14,10 +14,12 @@
 package configlint
 
 import (
+	"errors"
 	"go/ast"
 	"net/netip"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -60,17 +62,17 @@ func init() {
 const localhost = "localhost"
 
 // Suffixes that make a bare value a hostname rather than, say, a NATS subject or a bucket list.
-var hostSuffixes = map[string]bool{
-	"net": true, "nl": true, "com": true, "org": true,
-	"io": true, "dev": true, "build": true, "education": true,
-	"eu": true, "de": true, "be": true, "uk": true, "fr": true,
-	"internal": true, "local": true, "cloud": true, "k8s": true,
+var hostSuffixes = []string{
+	"net", "nl", "com", "org",
+	"io", "dev", "build", "education",
+	"eu", "de", "be", "uk", "fr",
+	"internal", "local", "cloud", "k8s",
 }
 
 // Tokens that name a single deployment, so a value containing one cannot be right everywhere.
-var deploymentMarkers = map[string]bool{
-	"test": true, "acc": true, "acceptatie": true, "sandbox": true,
-	"staging": true, "prod": true, "productie": true, "dev": true,
+var deploymentMarkers = []string{
+	"test", "acc", "acceptatie", "sandbox",
+	"staging", "prod", "productie", "dev",
 }
 
 // Field name suffixes that hold a secret or a client identity, which must never come from a default.
@@ -121,10 +123,10 @@ func checkField(pass *analysis.Pass, field *ast.Field, prefix string) {
 
 	// One tag covers every name in `A, B string`, but the credential rule looks at the name, so each
 	// name is judged on its own.
-	problems := make(map[string]string, len(names))
+	problems := make(map[string]error, len(names))
 	for _, name := range names {
-		if problem := problemFor(name, value, hasDefault); problem != "" {
-			problems[name] = problem
+		if err := problemFor(name, value, hasDefault); err != nil {
+			problems[name] = err
 		}
 	}
 
@@ -137,7 +139,7 @@ func checkField(pass *analysis.Pass, field *ast.Field, prefix string) {
 	case len(problems) > 0 && !exempted:
 		for _, name := range names {
 			if problem, found := problems[name]; found {
-				pass.Reportf(field.Pos(), "%s: %q is %s; remove the default and set the value per deployment, or exempt the field with //%s:allow <reason>",
+				pass.Reportf(field.Pos(), "%s: %q is %v; remove the default and set the value per deployment, or exempt the field with //%s:allow <reason>",
 					prefix+name, value, problem, directive)
 			}
 		}
@@ -172,18 +174,25 @@ func isDirectiveEnd(rest string) bool {
 	return rest == "" || strings.ContainsRune(" \t:-", rune(rest[0]))
 }
 
-func problemFor(name, value string, hasDefault bool) string {
+// The ways a default can be wrong. Their text completes the sentence `"value" is <error>` in the diagnostic.
+var (
+	errCredentialDefault   = errors.New("a credential with a default")
+	errEnvironmentSpecific = errors.New("an environment-specific default")
+)
+
+// problemFor returns why the default of the named field is wrong, or nil when it is fine.
+func problemFor(name, value string, hasDefault bool) error {
 	if !hasDefault || value == "" {
-		return ""
+		return nil
 	}
 	if isCredentialField(name) {
-		return "a credential with a default"
+		return errCredentialDefault
 	}
 	if isEnvironmentSpecific(value) {
-		return "an environment-specific default"
+		return errEnvironmentSpecific
 	}
 
-	return ""
+	return nil
 }
 
 func isCredentialField(name string) bool {
@@ -226,7 +235,7 @@ func isHostname(value string) bool {
 		return false
 	}
 
-	return hostSuffixes[strings.ToLower(labels[len(labels)-1])]
+	return slices.Contains(hostSuffixes, strings.ToLower(labels[len(labels)-1]))
 }
 
 // isLocalHost reports a host that means this machine in every deployment: localhost in any case, and
@@ -278,7 +287,7 @@ func hasDeploymentMarker(value string) bool {
 		return strings.ContainsRune("._-/: ", r)
 	}
 	for _, token := range strings.FieldsFunc(strings.ToLower(value), isSeparator) {
-		if deploymentMarkers[token] {
+		if slices.Contains(deploymentMarkers, token) {
 			return true
 		}
 	}
